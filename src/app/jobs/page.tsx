@@ -212,11 +212,12 @@ function JobListItem({ job, isSelected, userId, isLiked, onClick, onLike, onHide
         if (!userId) return;
         const delay = (job.id % 5) * 500;
         const timer = setTimeout(() => {
-            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${job.id}/simple-score/${userId}`)
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${job.id}/match/${userId}`)
                 .then(res => res.json())
                 .then(data => {
-                    setScore(data.score);
-                    onScoreLoad(job.id, data.score);
+                    const val = data.matchScore !== undefined ? data.matchScore : 0;
+                    setScore(val);
+                    onScoreLoad(job.id, val);
                 })
                 .catch(() => setScore(0));
         }, delay);

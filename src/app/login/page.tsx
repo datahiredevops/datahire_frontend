@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { useGoogleLogin } from "@react-oauth/google";
 
+
 export default function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
@@ -21,7 +22,7 @@ export default function LoginPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Google Login Failed");
-        login("fake-jwt-token", data.user, "/jobs"); // Explicit redirect
+        login("fake-jwt-token", data.user,'/jobs'); // Explicit redirect
       } catch (err: any) {
         setError(err.message);
         setLoading(false);
@@ -45,7 +46,7 @@ export default function LoginPage() {
       if (!res.ok) throw new Error(data.detail || "Login failed");
       
       // Standard login -> Go to Jobs
-      login("fake-jwt-token", data.user, "/jobs"); 
+      login("fake-jwt-token", data.user,'/jobs'); 
     } catch (err: any) {
       setError(err.message);
     } finally {

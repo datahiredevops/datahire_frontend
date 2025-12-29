@@ -6,7 +6,6 @@ import { useGoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/context/AuthContext";
 
 export default function SignupPage() {
-  const router = useRouter();
   const { login } = useAuth();
   
   const [role, setRole] = useState<"seeker" | "employer">("seeker");
@@ -28,7 +27,7 @@ export default function SignupPage() {
         if (!res.ok) throw new Error(data.detail || "Google Sign Up Failed");
 
         // Auto-Login -> Go to Profile Wizard
-        login("fake-jwt-token", data.user, "/profile");
+        login("fake-jwt-token", data.user,'profile');
         
       } catch (err: any) {
         setError(err.message);
@@ -65,7 +64,7 @@ export default function SignupPage() {
       if (!loginRes.ok) throw new Error("Auto-login failed. Please sign in manually.");
 
       // 3. REDIRECT TO PROFILE WIZARD
-      login("fake-jwt-token", loginData.user, "/profile");
+      login("fake-jwt-token", loginData.user,'/profile');
       
     } catch (err: any) {
       setError(err.message);
