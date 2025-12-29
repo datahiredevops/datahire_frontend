@@ -27,7 +27,7 @@ export default function SignupPage() {
         if (!res.ok) throw new Error(data.detail || "Google Sign Up Failed");
 
         // Auto-Login -> Go to Profile Wizard
-        login("fake-jwt-token", data.user,'profile');
+        login("fake-jwt-token", data.user,'/profile');
         
       } catch (err: any) {
         setError(err.message);
