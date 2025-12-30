@@ -1,37 +1,53 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Building2, Plus, Users, Briefcase, MapPin, Globe, LayoutDashboard, LogOut } from "lucide-react";
+import { Building2, Plus, Users, Briefcase, LayoutDashboard, LogOut, MapPin, Calendar, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function EmployerDashboard() {
   const { user, logout, loading: authLoading } = useAuth();
   const router = useRouter();
+  
   const [company, setCompany] = useState<any>(null);
+  const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login");
     
-    // If logged in, fetch company details
     if (user && user.role === "employer") {
-      fetchCompanyData();
+      fetchDashboardData();
     }
   }, [user, authLoading]);
 
-  const fetchCompanyData = async () => {
+  const fetchDashboardData = async () => {
     try {
-        // We assume the user object has the company_id or we fetch it via a new endpoint
-        // For now, let's fetch the user again to ensure we have the latest company link
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user?.id}`);
-        const data = await res.json();
+        // 1. Fetch User Profile to get Company ID
+        const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user?.id}`);
+        const userData = await userRes.json();
         
-        if (data.company) {
-            setCompany(data.company);
+        if (userData.company) {
+            setCompany(userData.company);
+            const myCompanyId = userData.company.id; // <--- Capture ID
+            
+            // 2. Fetch All Jobs
+            const jobsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/`);
+            const allJobs = await jobsRes.json();
+            
+            // 3. Filter by Company ID (Robust)
+            const myJobs = allJobs.filter((job: any) => job.company_id === myCompanyId);
+            
+            // If ID match fails (legacy data), fallback to Name match
+            if (myJobs.length === 0 && allJobs.length > 0) {
+                 const fallbackJobs = allJobs.filter((job: any) => job.company === userData.company.name);
+                 setJobs(fallbackJobs);
+            } else {
+                 setJobs(myJobs);
+            }
         }
     } catch (err) {
-        console.error("Failed to load company", err);
+        console.error("Failed to load dashboard", err);
     } finally {
         setLoading(false);
     }
@@ -44,8 +60,8 @@ export default function EmployerDashboard() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex">
       
-      {/* SIDEBAR (Simplified for Employer) */}
-      <aside className="w-64 bg-white border-r border-slate-200 hidden lg:flex flex-col fixed h-full">
+      {/* SIDEBAR */}
+      <aside className="w-64 bg-white border-r border-slate-200 hidden lg:flex flex-col fixed h-full z-10">
         <div className="p-8">
             <div className="flex items-center gap-2 font-bold text-xl text-slate-900">
                 <div className="w-8 h-8 bg-[#0F172A] text-white rounded-lg flex items-center justify-center text-lg">D</div>
@@ -74,28 +90,59 @@ export default function EmployerDashboard() {
                 <h1 className="text-3xl font-black text-slate-900">Hello, {user?.first_name} 👋</h1>
                 <p className="text-slate-500 mt-2">Here is what's happening at <b>{company?.name || "Your Company"}</b>.</p>
             </div>
-            <button className="bg-[#0F172A] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition shadow-lg shadow-slate-900/20">
+            <button 
+                onClick={() => router.push("/employer/jobs/create")} 
+                className="bg-[#0F172A] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition shadow-lg shadow-slate-900/20"
+            >
                 <Plus className="w-5 h-5" /> Post New Job
             </button>
         </div>
 
         {/* STATS ROW */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <StatCard label="Active Jobs" value="0" icon={<Briefcase className="w-6 h-6 text-blue-600"/>} color="bg-blue-50 text-blue-900" />
+            <StatCard label="Active Jobs" value={jobs.length} icon={<Briefcase className="w-6 h-6 text-blue-600"/>} color="bg-blue-50 text-blue-900" />
             <StatCard label="Total Applicants" value="0" icon={<Users className="w-6 h-6 text-purple-600"/>} color="bg-purple-50 text-purple-900" />
             <StatCard label="Company Size" value={company?.size || "-"} icon={<Building2 className="w-6 h-6 text-orange-600"/>} color="bg-orange-50 text-orange-900" />
         </div>
 
-        {/* EMPTY STATE (Since we have no jobs yet) */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Briefcase className="w-10 h-10 text-slate-400" />
+        {/* JOBS LIST */}
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="font-bold text-lg text-slate-900">Recent Job Postings</h3>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">No jobs posted yet</h3>
-            <p className="text-slate-500 max-w-md mx-auto mb-8">Create your first job listing to start attracting the top 1% of AI talent matches.</p>
-            <button className="text-[#0F172A] font-bold hover:underline">
-                Create Job Posting →
-            </button>
+
+            {jobs.length === 0 ? (
+                // EMPTY STATE
+                <div className="p-12 text-center">
+                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Briefcase className="w-10 h-10 text-slate-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">No jobs posted yet</h3>
+                    <p className="text-slate-500 max-w-md mx-auto mb-8">Create your first job listing to start attracting the top 1% of AI talent matches.</p>
+                    <button onClick={() => router.push("/employer/jobs/create")} className="text-[#0F172A] font-bold hover:underline">
+                        Create Job Posting →
+                    </button>
+                </div>
+            ) : (
+                // JOB LIST
+                <div>
+                    {jobs.map((job) => (
+                        <div key={job.id} className="p-6 border-b border-slate-100 hover:bg-slate-50 transition flex justify-between items-center group">
+                            <div>
+                                <h4 className="font-bold text-slate-900 text-lg">{job.title}</h4>
+                                <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
+                                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5"/> {job.location}</span>
+                                    <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5"/> Posted {new Date(job.posted_at).toLocaleDateString()}</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-bold">{job.status || "Active"}</span>
+                                </div>
+                            </div>
+                            <button className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#0F172A] hover:border-[#0F172A] transition">
+                                <ChevronRight className="w-5 h-5"/>
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
 
       </main>
