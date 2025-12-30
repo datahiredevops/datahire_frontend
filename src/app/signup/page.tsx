@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function SignupPage() {
   const { login } = useAuth();
+  const router = useRouter();
   
   const [role, setRole] = useState<"seeker" | "employer">("seeker");
   const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", password: "" });
@@ -82,8 +83,21 @@ export default function SignupPage() {
         </div>
 
         <div className="flex p-1 bg-slate-100 rounded-xl mb-6">
-            <button onClick={() => setRole("seeker")} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${role === 'seeker' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Job Seeker</button>
-            <button onClick={() => setRole("employer")} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${role === 'employer' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Employer</button>
+            {/* Job Seeker Button (Stays the same) */}
+            <button 
+                onClick={() => setRole("seeker")} 
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${role === 'seeker' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                Job Seeker
+            </button>
+
+            {/* Employer Button (UPDATED: Redirects to new Wizard) */}
+            <button 
+                onClick={() => router.push("/employer/register")} 
+                className="flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-500 hover:text-slate-900 hover:bg-slate-200"
+            >
+                Employer
+            </button>
         </div>
 
         {error && <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg text-center font-medium">{error}</div>}
