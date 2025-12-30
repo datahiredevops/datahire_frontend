@@ -39,16 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = (token: string, userData: User) => {
+  const login = (token: string, userData: User, redirectPath?: string) => {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
     
-    // --- FIXED REDIRECT ---
+    // 1. If a specific path was requested (like '/profile'), go there!
+    if (redirectPath) {
+        router.push(redirectPath);
+        return;
+    }
+    // 2. Otherwise, use the default logic
     if (userData.role === 'employer') {
         router.push('/employer/dashboard');
     } else {
-        router.push('/jobs'); // <--- CHANGED THIS from '/dashboard' to '/jobs'
+        router.push('/jobs'); 
     }
   };
 
