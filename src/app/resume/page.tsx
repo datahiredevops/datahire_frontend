@@ -4,7 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import PricingModal from "@/components/PricingModal"; 
 import { 
-  FileText, UploadCloud, Trash2, Download, Eye, CheckCircle, AlertCircle, Crown, Plus, Star 
+  FileText, UploadCloud, Trash2, Download, Eye, CheckCircle, AlertCircle, Crown, Plus, Star, X
 } from "lucide-react";
 
 export default function ResumePage() {
@@ -17,6 +17,10 @@ export default function ResumePage() {
   const [viewContent, setViewContent] = useState<string | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
+  // --- NEW STATE FOR POPUP ---
+  const [newlyUploadedId, setNewlyUploadedId] = useState<number | null>(null);
+  const [showPrimaryPrompt, setShowPrimaryPrompt] = useState(false);
+
   useEffect(() => {
     if (user) fetchResumes();
   }, [user]);
@@ -25,7 +29,6 @@ export default function ResumePage() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user?.id}/resumes`);
       const data = await res.json();
-      // Sort: Primary first, then by date
       const sorted = data.sort((a: any, b: any) => (b.is_primary === a.is_primary) ? 0 : b.is_primary ? 1 : -1);
       setResumes(sorted);
     } catch (err) { console.error(err); } finally { setLoading(false); }
@@ -48,12 +51,24 @@ export default function ResumePage() {
         method: "POST",
         body: formData,
       });
+      const data = await res.json();
+      
       if (!res.ok) throw new Error("Upload failed");
-      fetchResumes();
+      
+      await fetchResumes();
+
+      // --- LOGIC: If we already had resumes, ask if this should be primary ---
+      if (resumes.length > 0) {
+        setNewlyUploadedId(data.resume.id);
+        setShowPrimaryPrompt(true);
+      }
+
     } catch (err) {
       alert("Failed to upload resume.");
     } finally {
       setUploading(false);
+      // Reset input value so same file can be selected again if needed
+      e.target.value = ""; 
     }
   };
 
@@ -62,7 +77,10 @@ export default function ResumePage() {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user?.id}/resumes/${id}/set-primary`, {
             method: "PUT"
         });
-        if (res.ok) fetchResumes();
+        if (res.ok) {
+            fetchResumes();
+            setShowPrimaryPrompt(false); // Close modal if open
+        }
     } catch { alert("Failed to set primary."); }
   };
 
@@ -199,6 +217,35 @@ export default function ResumePage() {
                 </div>
             ))}
         </div>
+
+        {/* --- MODAL: PRIMARY PROMPT --- */}
+        {showPrimaryPrompt && newlyUploadedId && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 text-center">
+                    <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Star className="w-8 h-8 fill-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">Set as Primary?</h3>
+                    <p className="text-sm text-slate-500 mb-6">
+                        You just uploaded a new resume. Should we use this one for your AI Match Scores and Auto-Apply?
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={() => setShowPrimaryPrompt(false)}
+                            className="py-3 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50"
+                        >
+                            Keep Old
+                        </button>
+                        <button 
+                            onClick={() => handleSetPrimary(newlyUploadedId)}
+                            className="py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200"
+                        >
+                            Yes, Make Primary
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* VIEWER MODAL */}
         {isViewerOpen && (
