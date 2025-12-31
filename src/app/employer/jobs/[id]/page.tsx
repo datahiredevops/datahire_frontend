@@ -1,258 +1,209 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { Briefcase, ChevronRight, AlertCircle, Loader2, Sparkles, Plus, X, ChevronLeft, Calendar, Save } from "lucide-react";
+import { ArrowLeft, Clock, User, Download, Loader2, AlertCircle } from "lucide-react";
+import ApplicantDrawer from "@/components/ApplicantDrawer"; 
 
-export default function EditJobPage() {
+export default function JobApplicantsPage() {
+  const { id } = useParams();
   const router = useRouter();
-  const { id } = useParams(); // Get Job ID from URL
   const { token } = useAuth();
   
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(true); // Start as loading while fetching
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [job, setJob] = useState<any>(null);
+  const [applicants, setApplicants] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("all"); 
+  const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
-  const [formData, setFormData] = useState({
-    title: "",
-    location: "",
-    type: "Full-time",
-    remote: "On-site",
-    salary_range: "",
-    description: "",
-    requirements: "",
-    benefits: "",
-    min_match_score: 70,
-    auto_reject_score: 30,
-    application_deadline: "",
-    screening_questions: [""]
-  });
-
-  // --- FETCH JOB DETAILS ON MOUNT ---
   useEffect(() => {
-    if (token && id) fetchJobDetails();
+    if (token && id) fetchData();
   }, [token, id]);
 
-  const fetchJobDetails = async () => {
+  const fetchData = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Job not found");
-      
-      const data = await res.json();
-      
-      // Format deadline for input type="date" (YYYY-MM-DD)
-      let formattedDeadline = "";
-      if (data.application_deadline) {
-        formattedDeadline = new Date(data.application_deadline).toISOString().split('T')[0];
-      }
+        if (!id || id === 'null' || id === 'undefined') {
+            setError("Invalid Job ID");
+            setLoading(false);
+            return;
+        }
 
-      setFormData({
-        title: data.title || "",
-        location: data.location || "",
-        type: data.type || "Full-time",
-        remote: data.remote || "On-site",
-        salary_range: data.salary_range || "",
-        description: data.description || "",
-        requirements: data.requirements || "",
-        benefits: data.benefits || "",
-        min_match_score: data.min_match_score || 70,
-        auto_reject_score: data.auto_reject_score || 30,
-        application_deadline: formattedDeadline,
-        screening_questions: data.screening_questions && data.screening_questions.length > 0 ? data.screening_questions : [""]
-      });
-    } catch (err) {
-      setError("Failed to load job details.");
-    } finally {
-      setLoading(false);
-    }
+        const jobRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${id}`);
+        
+        if (!jobRes.ok) {
+            setError("Job not found");
+            setLoading(false);
+            return;
+        }
+
+        const jobData = await jobRes.json();
+        setJob(jobData);
+
+        const appRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${id}/applicants`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (appRes.ok) {
+            const appData = await appRes.json();
+            setApplicants(Array.isArray(appData) ? appData : []);
+        } else { setApplicants([]); }
+    } catch (err) { 
+        console.error(err); 
+        setError("Failed to load job details");
+    } 
+    finally { setLoading(false); }
   };
 
-  const handleChange = (e: any) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  const updateQuestion = (index: number, value: string) => {
-    const newQ = [...formData.screening_questions];
-    newQ[index] = value;
-    setFormData({ ...formData, screening_questions: newQ });
-  };
-
-  // --- HANDLE UPDATE (PUT REQUEST) ---
-  const handleUpdate = async (status: string | null = null) => {
-    setSaving(true); setError("");
-    
-    const payload: any = {
-        ...formData,
-        min_match_score: Number(formData.min_match_score),
-        auto_reject_score: Number(formData.auto_reject_score),
-        application_deadline: formData.application_deadline ? new Date(formData.application_deadline).toISOString() : null,
-        screening_questions: formData.screening_questions.filter(q => q.trim() !== "")
-    };
-
-    // Only include status if explicitly changing it (e.g. Publish/Draft buttons)
-    // Otherwise, it keeps the current status
-    if (status) {
-        payload.status = status;
-    }
-
+  const handleDownload = async (e: any, appId: number) => {
+    e.stopPropagation();
+    setDownloadingId(appId);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${id}`, {
-        method: "PUT",
-        headers: { 
-            "Content-Type": "application/json", 
-            "Authorization": `Bearer ${token}` 
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Failed to update job");
-      }
-      
-      router.push("/employer/jobs");
-      
-    } catch (err: any) { 
-        setError(err.message); 
-        setSaving(false); 
-    }
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/employer/applications/${appId}/resume`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.url && data.url.startsWith('http')) {
+                window.open(data.url, '_blank');
+            } else {
+                alert("Resume file not valid.");
+            }
+        } else {
+            alert("Resume not found.");
+        }
+    } catch (err) { alert("Download failed"); }
+    finally { setDownloadingId(null); }
   };
 
-  const inputClass = "w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-900 text-sm font-bold focus:ring-2 focus:ring-[#0F172A] focus:border-[#0F172A] outline-none transition-all placeholder:text-slate-400";
-  const labelClass = "text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block";
+  const handleDrawerClose = () => {
+      if (selectedAppId) {
+          setApplicants(prev => prev.map(a => a.application_id === selectedAppId ? { ...a, is_viewed: true } : a));
+      }
+      setSelectedAppId(null);
+  };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-400 font-bold gap-3"><Loader2 className="animate-spin"/> Loading job details...</div>;
+  const filteredList = applicants.filter(a => {
+      if (activeTab === "recommended") return a.match_score >= (job?.min_match_score || 70);
+      if (activeTab === "rejected") return a.match_score < (job?.auto_reject_score || 30);
+      return true; 
+  });
+
+  if (error) {
+    return (
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-8">
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center max-w-md w-full">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                    <AlertCircle className="w-8 h-8"/>
+                </div>
+                <h2 className="text-xl font-black text-slate-900 mb-2">Job Not Found</h2>
+                <button onClick={() => router.push("/employer/jobs")} className="w-full py-3 bg-[#0F172A] text-white font-bold rounded-xl hover:bg-slate-800 transition">Back to Dashboard</button>
+            </div>
+        </div>
+    );
+  }
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-400 font-bold gap-3"><Loader2 className="animate-spin"/> Loading workspace...</div>;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6 md:p-12 font-sans">
-      <div className="max-w-4xl mx-auto">
-        
-        {/* HEADER */}
-        <div className="mb-8">
-            <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-900 flex items-center gap-1 text-sm font-bold mb-4 transition">
-                <ChevronLeft className="w-4 h-4"/> Cancel Edit
+    <div className="min-h-screen bg-[#F8FAFC] p-8 font-sans">
+        <div className="max-w-6xl mx-auto">
+            <button onClick={() => router.push("/employer/jobs")} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold mb-6 transition">
+                <ArrowLeft className="w-4 h-4" /> Back to Jobs
             </button>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Edit Job</h1>
-            <p className="text-slate-500 mt-2 font-medium">Update job details and AI configuration.</p>
-        </div>
 
-        {/* STEPS INDICATOR */}
-        <div className="flex items-center gap-4 mb-8">
-            <div className={`flex items-center gap-2 text-sm font-bold ${step === 1 ? 'text-[#0F172A]' : 'text-slate-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 1 ? 'bg-[#0F172A] text-white' : 'bg-slate-200 text-slate-500'}`}>1</div>
-                Job Details
-            </div>
-            <div className="h-0.5 w-12 bg-slate-200"></div>
-            <div className={`flex items-center gap-2 text-sm font-bold ${step === 2 ? 'text-[#0F172A]' : 'text-slate-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 2 ? 'bg-[#0F172A] text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
-                AI Configuration
-            </div>
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden p-8">
-            {error && <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl flex items-center gap-2 font-bold text-sm"><AlertCircle className="w-5 h-5"/> {error}</div>}
-
-            {/* STEP 1: BASICS */}
-            {step === 1 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right duration-300">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div><label className={labelClass}>Job Title</label><input name="title" className={inputClass} placeholder="e.g. Senior React Developer" value={formData.title} onChange={handleChange} /></div>
-                        <div><label className={labelClass}>Location</label><input name="location" className={inputClass} placeholder="e.g. Austin, TX" value={formData.location} onChange={handleChange} /></div>
+            <div className="flex justify-between items-start mb-8">
+                <div>
+                    <h1 className="text-3xl font-black text-slate-900">{job?.title}</h1>
+                    <div className="flex items-center gap-3 mt-2 text-sm text-slate-500">
+                        <span className="bg-slate-200 px-2 py-1 rounded text-slate-700 font-bold text-xs">{job?.location}</span>
+                        <span>•</span>
+                        <span>Posted {job?.posted_at ? new Date(job.posted_at).toLocaleDateString() : 'N/A'}</span>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className={labelClass}>Employment Type</label>
-                            <select name="type" className={inputClass} value={formData.type} onChange={handleChange}>
-                                <option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className={labelClass}>Remote Policy</label>
-                            <select name="remote" className={inputClass} value={formData.remote} onChange={handleChange}>
-                                <option>On-site</option><option>Remote</option><option>Hybrid</option>
-                            </select>
-                        </div>
-                        <div><label className={labelClass}>Salary Range</label><input name="salary_range" className={inputClass} placeholder="$100k - $140k" value={formData.salary_range} onChange={handleChange} /></div>
-                    </div>
-
-                    <div><label className={labelClass}>Job Description</label><textarea name="description" className={`${inputClass} min-h-[150px] leading-relaxed`} placeholder="Describe the role and responsibilities..." value={formData.description} onChange={handleChange} /></div>
-                    <div><label className={labelClass}>Requirements (Crucial for AI)</label><textarea name="requirements" className={`${inputClass} min-h-[120px] leading-relaxed`} placeholder="List specific skills (e.g. Python, AWS, 5+ years experience)..." value={formData.requirements} onChange={handleChange} /></div>
-
-                    <button onClick={() => setStep(2)} disabled={!formData.title} className="w-full py-4 bg-[#0F172A] text-white font-bold text-lg rounded-xl hover:bg-slate-800 transition flex items-center justify-center gap-2 mt-4">
-                        Next Step <ChevronRight className="w-5 h-5"/>
-                    </button>
                 </div>
-            )}
+            </div>
 
-            {/* STEP 2: AI CONFIG */}
-            {step === 2 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right duration-300">
-                    
-                    {/* DEADLINE */}
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Calendar className="w-4 h-4 text-slate-500" />
-                            <label className={labelClass.replace("mb-2","mb-0")}>Listing End Date</label>
-                        </div>
-                        <input type="date" name="application_deadline" className={inputClass} value={formData.application_deadline} onChange={handleChange} />
+            <div className="flex border-b border-slate-200 mb-6 gap-6">
+                <TabButton label={`All Candidates (${applicants.length})`} active={activeTab === "all"} onClick={() => setActiveTab("all")} />
+                <TabButton label="Recommended" count={applicants.filter(a => a.match_score >= (job?.min_match_score || 70)).length} active={activeTab === "recommended"} onClick={() => setActiveTab("recommended")} />
+                <TabButton label="Low Match" count={applicants.filter(a => a.match_score < (job?.auto_reject_score || 30)).length} active={activeTab === "rejected"} onClick={() => setActiveTab("rejected")} />
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm min-h-[400px]">
+                {filteredList.length === 0 ? (
+                    <div className="p-12 text-center text-slate-400 flex flex-col items-center">
+                        <User className="w-12 h-12 mb-4 opacity-20"/>
+                        <p>No candidates found in this category.</p>
                     </div>
-
-                    {/* THRESHOLDS */}
-                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div>
-                                <label className={labelClass}>Shortlist Threshold ({formData.min_match_score}%)</label>
-                                <input type="range" name="min_match_score" min="50" max="95" value={formData.min_match_score} onChange={handleChange} className="w-full accent-green-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none" />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Auto-Reject Threshold ({formData.auto_reject_score}%)</label>
-                                <input type="range" name="auto_reject_score" min="0" max="50" value={formData.auto_reject_score} onChange={handleChange} className="w-full accent-red-500 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* QUESTIONS */}
+                ) : (
                     <div>
-                        <div className="flex justify-between items-end mb-4">
-                            <label className={labelClass}>Screening Questions</label>
-                            <button onClick={() => setFormData({...formData, screening_questions: [...formData.screening_questions, ""]})} className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:underline"><Plus className="w-4 h-4"/> Add Question</button>
-                        </div>
-                        <div className="space-y-3">
-                            {formData.screening_questions.map((q, i) => (
-                                <div key={i} className="flex gap-2">
-                                    <input className={inputClass} placeholder={`Question ${i+1}`} value={q} onChange={(e) => updateQuestion(i, e.target.value)} />
-                                    <button onClick={() => {
-                                        const newQ = formData.screening_questions.filter((_, idx) => idx !== i);
-                                        setFormData({...formData, screening_questions: newQ});
-                                    }} className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition border-2 border-transparent hover:border-red-100"><X className="w-5 h-5"/></button>
+                        {filteredList.map((app) => (
+                            <div 
+                                key={app.application_id} 
+                                onClick={() => setSelectedAppId(app.application_id)}
+                                className={`p-6 border-b border-slate-100 hover:bg-blue-50/50 cursor-pointer transition flex items-center justify-between group ${!app.is_viewed ? 'bg-blue-50/30' : ''}`}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="relative">
+                                        <div className="w-12 h-12 bg-[#0F172A] rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                            {app.name ? app.name.charAt(0) : '?'}
+                                        </div>
+                                        {!app.is_viewed && (
+                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 border-2 border-white rounded-full"></div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h4 className={`text-lg group-hover:text-blue-700 transition ${!app.is_viewed ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
+                                            {app.name}
+                                        </h4>
+                                        <div className="flex gap-2 mt-1">
+                                            <span className={`px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 ${getScoreColor(app.match_score)}`}>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                                                {app.match_score}% Match
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-xs font-bold capitalize">{app.status}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
+                                <div className="flex items-center gap-4">
+                                    <span className="text-xs text-slate-400 font-bold flex items-center gap-1 mr-4">
+                                        <Clock className="w-3 h-3"/> {app.applied_at ? new Date(app.applied_at).toLocaleDateString() : 'N/A'}
+                                    </span>
+                                    <button 
+                                        onClick={(e) => handleDownload(e, app.application_id)}
+                                        className="p-2.5 border border-slate-200 rounded-lg text-slate-500 hover:text-[#0F172A] hover:bg-white hover:shadow-md transition bg-slate-50 relative"
+                                    >
+                                        {downloadingId === app.application_id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4"/>}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-
-                    {/* ACTION BUTTONS */}
-                    <div className="flex gap-4 pt-6 border-t border-slate-100 mt-6">
-                        <button 
-                            onClick={() => setStep(1)} 
-                            className="px-6 py-4 font-bold text-slate-500 hover:text-slate-900 bg-slate-100 rounded-xl transition"
-                        >
-                            Back
-                        </button>
-                        
-                        <button 
-                            onClick={() => handleUpdate(null)} 
-                            disabled={saving} 
-                            className="flex-1 py-4 bg-[#0F172A] text-white font-bold text-lg rounded-xl hover:bg-slate-800 transition flex items-center justify-center gap-2 shadow-lg shadow-slate-900/10"
-                        >
-                            {saving ? <Loader2 className="animate-spin"/> : "Save Changes"}
-                        </button>
-                    </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
-      </div>
+        <ApplicantDrawer 
+            isOpen={!!selectedAppId} 
+            onClose={handleDrawerClose}
+            applicationId={selectedAppId}
+            token={token}
+        />
     </div>
   );
+}
+
+function TabButton({ label, count, active, onClick }: any) {
+    return (
+        <button onClick={onClick} className={`pb-3 text-sm font-bold border-b-2 transition flex items-center gap-2 ${active ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            {label}
+            {count !== undefined && <span className={`px-2 py-0.5 rounded-full text-xs ${active ? 'bg-[#0F172A] text-white' : 'bg-slate-200 text-slate-600'}`}>{count}</span>}
+        </button>
+    )
+}
+
+function getScoreColor(score: number) {
+    if (score >= 80) return "bg-green-100 text-green-700";
+    if (score >= 50) return "bg-yellow-100 text-yellow-700";
+    return "bg-red-100 text-red-700";
 }
