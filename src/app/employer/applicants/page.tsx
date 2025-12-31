@@ -1,20 +1,29 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Search, Filter, Loader2, User, ChevronDown, Check, Download, Briefcase } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Search, Filter, Loader2, User, Check, Briefcase } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function AllApplicantsPage() {
+// Separate the content to use Suspense
+function ApplicantsContent() {
   const { token } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Reads the URL params
   
   const [applicants, setApplicants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // --- SEARCH & FILTER STATE ---
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // --- NEW: READ URL PARAM ON MOUNT ---
+  useEffect(() => {
+    const statusFromUrl = searchParams.get("status");
+    if (statusFromUrl) {
+        setStatusFilter(statusFromUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (token) fetchApplicants();
@@ -22,7 +31,6 @@ export default function AllApplicantsPage() {
 
   const fetchApplicants = async () => {
     try {
-      // This calls the endpoint we saw in employer.py: get_all_company_applicants
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/employer/applicants`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -34,36 +42,31 @@ export default function AllApplicantsPage() {
     finally { setLoading(false); }
   };
 
-  // --- FILTER LOGIC ---
   const filteredList = applicants.filter(app => {
-    // 1. Search Logic (Name, Email, or Job Title)
     const query = search.toLowerCase();
     const matchesSearch = 
         (app.name && app.name.toLowerCase().includes(query)) ||
         (app.email && app.email.toLowerCase().includes(query)) ||
         (app.job_title && app.job_title.toLowerCase().includes(query));
 
-    // 2. Filter Logic (Status)
-    const matchesFilter = statusFilter === "All" || app.status === statusFilter;
+    // Case insensitive filter matching
+    const matchesFilter = statusFilter === "All" || app.status.toLowerCase() === statusFilter.toLowerCase();
 
     return matchesSearch && matchesFilter;
   });
 
-  // Filter Options
   const statuses = ["All", "Applied", "Reviewing", "Interview", "Offer", "Rejected"];
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-8 font-sans" onClick={() => setIsFilterOpen(false)}>
         <div className="max-w-6xl mx-auto">
             
-            {/* HEADER */}
             <div className="flex flex-col md:flex-row justify-between items-end md:items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900">All Applicants</h1>
                     <p className="text-slate-500 mt-1 font-medium">A unified view of candidates across all job postings.</p>
                 </div>
 
-                {/* SEARCH & FILTER BAR */}
                 <div className="flex gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:w-80">
                         <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400"/>
@@ -75,7 +78,6 @@ export default function AllApplicantsPage() {
                         />
                     </div>
                     
-                    {/* FILTER DROPDOWN */}
                     <div className="relative">
                         <button 
                             onClick={(e) => { e.stopPropagation(); setIsFilterOpen(!isFilterOpen); }}
@@ -103,9 +105,7 @@ export default function AllApplicantsPage() {
                 </div>
             </div>
 
-            {/* APPLICANTS TABLE */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
-                {/* Table Header */}
                 <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 border-b border-slate-200 text-xs font-black text-slate-400 uppercase tracking-wider">
                     <div className="col-span-4 pl-2">Candidate</div>
                     <div className="col-span-3">Applied For</div>
@@ -114,7 +114,6 @@ export default function AllApplicantsPage() {
                     <div className="col-span-1 text-right pr-2">Date</div>
                 </div>
 
-                {/* Loading State */}
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
                         <Loader2 className="w-8 h-8 animate-spin text-[#0F172A]"/>
@@ -122,38 +121,36 @@ export default function AllApplicantsPage() {
                     </div>
                 )}
 
-                {/* Empty State */}
                 {!loading && filteredList.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
                         <User className="w-12 h-12 opacity-20"/>
                         <p className="font-bold">No applicants found.</p>
-                        {search && <button onClick={() => {setSearch(""); setStatusFilter("All")}} className="text-blue-600 text-sm font-bold hover:underline">Clear filters</button>}
+                        {(search || statusFilter !== "All") && <button onClick={() => {setSearch(""); setStatusFilter("All"); router.push('/employer/applicants')}} className="text-blue-600 text-sm font-bold hover:underline">Clear filters</button>}
                     </div>
                 )}
 
-                {/* List Items */}
                 {!loading && filteredList.map((app) => (
                     <div 
                         key={app.id} 
-                        // Note: Using job_id because the backend groups by job for the detailed view logic usually
-                        // But actually, we need to know where to link. 
-                        // For now, let's link to the job's applicant page with this applicant selected if possible, 
-                        // or just the job applicant list.
-                        onClick={() => router.push(`/employer/jobs/${app.job_title ? '' : ''}1`)} // Placeholder link, ideally needs job_id in the API response
+                        onClick={() => router.push(`/employer/jobs/${app.job_title ? '' : ''}1`)} 
                         className="grid grid-cols-12 gap-4 p-4 border-b border-slate-100 hover:bg-slate-50 items-center transition cursor-pointer group"
                     >
-                        {/* Candidate Info */}
                         <div className="col-span-4 flex items-center gap-3 pl-2">
-                            <div className="w-10 h-10 bg-[#0F172A] rounded-full flex items-center justify-center text-white font-bold">
-                                {app.name ? app.name.charAt(0) : <User className="w-5 h-5"/>}
+                            <div className="relative">
+                                <div className="w-10 h-10 bg-[#0F172A] rounded-full flex items-center justify-center text-white font-bold">
+                                    {app.name ? app.name.charAt(0) : <User className="w-5 h-5"/>}
+                                </div>
+                                {/* UNREAD INDICATOR DOT */}
+                                {!app.is_viewed && (
+                                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 border-2 border-white rounded-full"></div>
+                                )}
                             </div>
                             <div className="overflow-hidden">
-                                <h4 className="font-black text-slate-900 truncate group-hover:text-blue-700 transition">{app.name}</h4>
+                                <h4 className={`truncate group-hover:text-blue-700 transition ${!app.is_viewed ? 'font-black text-slate-900' : 'font-medium text-slate-900'}`}>{app.name}</h4>
                                 <p className="text-xs text-slate-500 font-bold truncate">{app.email}</p>
                             </div>
                         </div>
 
-                        {/* Job Info */}
                         <div className="col-span-3">
                              <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
                                 <Briefcase className="w-4 h-4 text-slate-400"/>
@@ -161,21 +158,18 @@ export default function AllApplicantsPage() {
                              </div>
                         </div>
 
-                        {/* AI Score */}
                         <div className="col-span-2 flex justify-center">
                             <span className={`px-2 py-1 rounded text-xs font-black ${getScoreColor(app.score)}`}>
                                 {app.score}% Match
                             </span>
                         </div>
 
-                        {/* Status */}
                         <div className="col-span-2 flex justify-center">
                             <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${getStatusColor(app.status)}`}>
                                 {app.status}
                             </span>
                         </div>
 
-                        {/* Date */}
                         <div className="col-span-1 text-right text-xs font-bold text-slate-400 pr-2">
                             {app.applied_at ? new Date(app.applied_at).toLocaleDateString() : 'N/A'}
                         </div>
@@ -184,6 +178,15 @@ export default function AllApplicantsPage() {
             </div>
         </div>
     </div>
+  );
+}
+
+// Wrap in Suspense boundary for useSearchParams
+export default function AllApplicantsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ApplicantsContent />
+    </Suspense>
   );
 }
 

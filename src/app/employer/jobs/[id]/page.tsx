@@ -24,22 +24,14 @@ export default function JobApplicantsPage() {
 
   const fetchData = async () => {
     try {
-        if (!id || id === 'null' || id === 'undefined') {
+        if (!id || id === 'null') {
             setError("Invalid Job ID");
             setLoading(false);
             return;
         }
 
         const jobRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${id}`);
-        
-        if (!jobRes.ok) {
-            setError("Job not found");
-            setLoading(false);
-            return;
-        }
-
-        const jobData = await jobRes.json();
-        setJob(jobData);
+        if (jobRes.ok) setJob(await jobRes.json());
 
         const appRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${id}/applicants`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -48,11 +40,8 @@ export default function JobApplicantsPage() {
         if (appRes.ok) {
             const appData = await appRes.json();
             setApplicants(Array.isArray(appData) ? appData : []);
-        } else { setApplicants([]); }
-    } catch (err) { 
-        console.error(err); 
-        setError("Failed to load job details");
-    } 
+        }
+    } catch (err) { setError("Failed to load details"); } 
     finally { setLoading(false); }
   };
 
@@ -65,44 +54,25 @@ export default function JobApplicantsPage() {
         });
         if (res.ok) {
             const data = await res.json();
-            if (data.url && data.url.startsWith('http')) {
-                window.open(data.url, '_blank');
-            } else {
-                alert("Resume file not valid.");
-            }
-        } else {
-            alert("Resume not found.");
+            if (data.url?.startsWith('http')) window.open(data.url, '_blank');
         }
-    } catch (err) { alert("Download failed"); }
+    } catch (err) { console.error(err); }
     finally { setDownloadingId(null); }
   };
 
-  const handleDrawerClose = () => {
-      if (selectedAppId) {
-          setApplicants(prev => prev.map(a => a.application_id === selectedAppId ? { ...a, is_viewed: true } : a));
-      }
-      setSelectedAppId(null);
+  const handleApplicantViewed = (appId: number) => {
+      setApplicants(prev => prev.map(a => 
+          a.application_id === appId ? { ...a, is_viewed: true } : a
+      ));
   };
+
+  const handleDrawerClose = () => setSelectedAppId(null);
 
   const filteredList = applicants.filter(a => {
       if (activeTab === "recommended") return a.match_score >= (job?.min_match_score || 70);
       if (activeTab === "rejected") return a.match_score < (job?.auto_reject_score || 30);
       return true; 
   });
-
-  if (error) {
-    return (
-        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-8">
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center max-w-md w-full">
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
-                    <AlertCircle className="w-8 h-8"/>
-                </div>
-                <h2 className="text-xl font-black text-slate-900 mb-2">Job Not Found</h2>
-                <button onClick={() => router.push("/employer/jobs")} className="w-full py-3 bg-[#0F172A] text-white font-bold rounded-xl hover:bg-slate-800 transition">Back to Dashboard</button>
-            </div>
-        </div>
-    );
-  }
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-400 font-bold gap-3"><Loader2 className="animate-spin"/> Loading workspace...</div>;
 
@@ -147,7 +117,7 @@ export default function JobApplicantsPage() {
                                 <div className="flex items-center gap-4">
                                     <div className="relative">
                                         <div className="w-12 h-12 bg-[#0F172A] rounded-full flex items-center justify-center text-white font-bold text-lg">
-                                            {app.name ? app.name.charAt(0) : '?'}
+                                            {app.name?.charAt(0)}
                                         </div>
                                         {!app.is_viewed && (
                                             <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 border-2 border-white rounded-full"></div>
@@ -157,12 +127,12 @@ export default function JobApplicantsPage() {
                                         <h4 className={`text-lg group-hover:text-blue-700 transition ${!app.is_viewed ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
                                             {app.name}
                                         </h4>
-                                        <div className="flex gap-2 mt-1">
+                                        <div className="flex items-center gap-2 mt-1">
                                             <span className={`px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 ${getScoreColor(app.match_score)}`}>
-                                                <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
                                                 {app.match_score}% Match
                                             </span>
                                             <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-xs font-bold capitalize">{app.status}</span>
+                                            {app.is_viewed && <span className="px-2 py-0.5 rounded bg-green-50 text-green-600 text-[10px] font-black uppercase border border-green-100">Viewed</span>}
                                         </div>
                                     </div>
                                 </div>
@@ -183,11 +153,13 @@ export default function JobApplicantsPage() {
                 )}
             </div>
         </div>
+        
         <ApplicantDrawer 
             isOpen={!!selectedAppId} 
             onClose={handleDrawerClose}
             applicationId={selectedAppId}
             token={token}
+            onMarkAsViewed={handleApplicantViewed}
         />
     </div>
   );
