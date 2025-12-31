@@ -6,7 +6,7 @@ import { Briefcase, ChevronRight, AlertCircle, Loader2, Sparkles, Plus, X, Chevr
 
 export default function CreateJobPage() {
   const router = useRouter();
-  const { token } = useAuth(); // Now this works because we fixed AuthContext!
+  const { token } = useAuth();
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -21,10 +21,9 @@ export default function CreateJobPage() {
     description: "",
     requirements: "",
     benefits: "",
-    // AI Config
     min_match_score: 70,
     auto_reject_score: 30,
-    application_deadline: "", // <--- NEW FIELD
+    application_deadline: "",
     screening_questions: [""]
   });
 
@@ -36,17 +35,17 @@ export default function CreateJobPage() {
     setFormData({ ...formData, screening_questions: newQ });
   };
 
-  const handleSubmit = async () => {
+  // --- UPDATED SUBMIT FUNCTION (ACCEPTS STATUS) ---
+  const handleSubmit = async (status: string) => {
     setLoading(true); setError("");
     
-    // 1. FORMAT DATA (Critical Fix for "Failed to post")
-    // Pydantic hates empty strings for Dates/Ints, so we convert them to null
     const payload = {
         ...formData,
         min_match_score: Number(formData.min_match_score),
         auto_reject_score: Number(formData.auto_reject_score),
         application_deadline: formData.application_deadline ? new Date(formData.application_deadline).toISOString() : null,
-        screening_questions: formData.screening_questions.filter(q => q.trim() !== "")
+        screening_questions: formData.screening_questions.filter(q => q.trim() !== ""),
+        status: status // <--- Send "Draft" or "Published"
     };
 
     try {
@@ -60,22 +59,16 @@ export default function CreateJobPage() {
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to post job");
       
-      if (!res.ok) {
-        // Show the actual error message from backend (e.g. "Validation Error")
-        throw new Error(data.detail || "Failed to post job");
-      }
-      
-      router.push("/employer/dashboard");
+      router.push("/employer/jobs");
       
     } catch (err: any) { 
-        console.error(err);
         setError(err.message); 
         setLoading(false); 
     }
   };
 
-  // Reusable Classes
   const inputClass = "w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-900 text-sm font-bold focus:ring-2 focus:ring-[#0F172A] focus:border-[#0F172A] outline-none transition-all placeholder:text-slate-400";
   const labelClass = "text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block";
 
@@ -145,38 +138,25 @@ export default function CreateJobPage() {
             {step === 2 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right duration-300">
                     
-                    {/* DEADLINE (NEW) */}
+                    {/* DEADLINE */}
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <Calendar className="w-4 h-4 text-slate-500" />
                             <label className={labelClass.replace("mb-2","mb-0")}>Listing End Date</label>
                         </div>
-                        <input 
-                            type="date" 
-                            name="application_deadline" 
-                            className={inputClass} 
-                            value={formData.application_deadline} 
-                            onChange={handleChange}
-                        />
-                        <p className="text-xs text-slate-400 mt-2 font-medium">Job will automatically close for new applicants after this date.</p>
+                        <input type="date" name="application_deadline" className={inputClass} value={formData.application_deadline} onChange={handleChange} />
                     </div>
 
-                    {/* THRESHOLDS CARD */}
+                    {/* THRESHOLDS */}
                     <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center"><Sparkles className="w-5 h-5"/></div>
-                            <div><h3 className="font-bold text-slate-900">AI Scoring Logic</h3><p className="text-xs text-slate-500">Define how the AI should filter candidates.</p></div>
-                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div>
                                 <label className={labelClass}>Shortlist Threshold ({formData.min_match_score}%)</label>
                                 <input type="range" name="min_match_score" min="50" max="95" value={formData.min_match_score} onChange={handleChange} className="w-full accent-green-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none" />
-                                <p className="text-xs text-slate-500 mt-2 font-medium">Candidates above this score are marked "Recommended".</p>
                             </div>
                             <div>
                                 <label className={labelClass}>Auto-Reject Threshold ({formData.auto_reject_score}%)</label>
                                 <input type="range" name="auto_reject_score" min="0" max="50" value={formData.auto_reject_score} onChange={handleChange} className="w-full accent-red-500 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none" />
-                                <p className="text-xs text-slate-500 mt-2 font-medium">Candidates below this score go to "Low Match".</p>
                             </div>
                         </div>
                     </div>
@@ -200,10 +180,31 @@ export default function CreateJobPage() {
                         </div>
                     </div>
 
-                    <div className="flex gap-4 pt-4">
-                        <button onClick={() => setStep(1)} className="px-8 py-4 font-bold text-slate-500 hover:text-slate-900 bg-slate-100 rounded-xl hover:bg-slate-200 transition">Back</button>
-                        <button onClick={handleSubmit} disabled={loading} className="w-full py-4 bg-[#0F172A] text-white font-bold text-lg rounded-xl hover:bg-slate-800 transition flex items-center justify-center gap-2">
-                            {loading ? <Loader2 className="animate-spin"/> : "Post Job & Activate AI"}
+                    {/* NEW: TWO BUTTONS (DRAFT vs PUBLISH) */}
+                    <div className="flex gap-4 pt-6 border-t border-slate-100 mt-6">
+                        <button 
+                            onClick={() => setStep(1)} 
+                            className="px-6 py-4 font-bold text-slate-500 hover:text-slate-900 bg-slate-100 rounded-xl transition"
+                        >
+                            Back
+                        </button>
+                        
+                        {/* SAVE DRAFT BUTTON */}
+                        <button 
+                            onClick={() => handleSubmit("Draft")} 
+                            disabled={loading} 
+                            className="flex-1 py-4 bg-white border-2 border-slate-200 text-slate-700 font-bold text-lg rounded-xl hover:bg-slate-50 transition flex items-center justify-center gap-2"
+                        >
+                            {loading ? <Loader2 className="animate-spin"/> : "Save as Draft"}
+                        </button>
+
+                        {/* PUBLISH BUTTON */}
+                        <button 
+                            onClick={() => handleSubmit("Published")} 
+                            disabled={loading} 
+                            className="flex-1 py-4 bg-[#0F172A] text-white font-bold text-lg rounded-xl hover:bg-slate-800 transition flex items-center justify-center gap-2 shadow-lg shadow-slate-900/10"
+                        >
+                            {loading ? <Loader2 className="animate-spin"/> : "Publish Now"}
                         </button>
                     </div>
                 </div>
