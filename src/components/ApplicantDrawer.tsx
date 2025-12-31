@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, Download, User, CheckCircle, AlertCircle, FileText, BrainCircuit, Loader2, ChevronDown } from "lucide-react";
+import { X, Download, User, FileText, BrainCircuit, Loader2, ChevronDown, CheckCircle, Eye, AlertCircle } from "lucide-react";
 
-export default function ApplicantDrawer({ isOpen, onClose, applicationId, token }: any) {
+export default function ApplicantDrawer({ isOpen, onClose, applicationId, token, onMarkAsViewed }: any) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("insights"); 
   const [status, setStatus] = useState("");
+  const [isViewed, setIsViewed] = useState(false);
 
   useEffect(() => {
     if (isOpen && applicationId) {
@@ -24,13 +25,25 @@ export default function ApplicantDrawer({ isOpen, onClose, applicationId, token 
       });
       if (res.ok) {
         const result = await res.json();
-        // DEBUG: Uncomment the line below if you still have issues to see what the backend sends
-        // console.log("Resume Data:", result.resume_url); 
         setData(result);
         setStatus(result.status);
+        setIsViewed(result.is_viewed);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Fetch Error:", e); }
     finally { setLoading(false); }
+  };
+
+  const handleMarkViewed = async () => {
+      try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/employer/applications/${applicationId}/mark-viewed`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+              setIsViewed(true);
+              if (onMarkAsViewed) onMarkAsViewed(applicationId);
+          }
+      } catch (e) { console.error("Failed to mark viewed"); }
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -43,20 +56,21 @@ export default function ApplicantDrawer({ isOpen, onClose, applicationId, token 
     } catch (e) { alert("Failed to update status"); }
   };
 
-  // Helper function to check if a URL is valid (not null, not "null", starts with http)
-  const isValidUrl = (url: any) => {
-    return url && typeof url === 'string' && url.startsWith("http");
-  };
+  const isValidUrl = (url: any) => url && typeof url === 'string' && url.startsWith("http");
 
   if (!isOpen) return null;
+
+  // Helper to find the summary text regardless of the key name
+  const getSummaryText = () => {
+      if (!data?.ai_analysis) return "No analysis available.";
+      return data.ai_analysis.summary || data.ai_analysis.reason || "Analysis complete.";
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={onClose} />
-
       <div className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
-        {/* HEADER */}
         <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
           <div className="flex gap-4">
             <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-2xl font-black text-slate-300 shadow-sm">
@@ -66,84 +80,90 @@ export default function ApplicantDrawer({ isOpen, onClose, applicationId, token 
               <h2 className="text-xl font-black text-slate-900">{data?.applicant_name || "Loading..."}</h2>
               <p className="text-slate-500 text-sm font-medium">{data?.applicant_email}</p>
               
-              <div className="mt-3 relative inline-block group">
-                <button className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase flex items-center gap-2 transition ${getStatusColor(status)}`}>
-                  {status || "Applied"} <ChevronDown className="w-3 h-3"/>
-                </button>
-                <div className="absolute top-full left-0 mt-1 w-40 bg-white border border-slate-200 rounded-xl shadow-xl hidden group-hover:block z-10 p-1">
-                    {["Applied", "Reviewing", "Interview", "Offer", "Rejected"].map((s) => (
-                        <button key={s} onClick={() => handleStatusChange(s)} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">
-                            {s}
-                        </button>
-                    ))}
-                </div>
+              <div className="mt-3 flex items-center gap-3">
+                  <div className="relative inline-block group">
+                    <button className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase flex items-center gap-2 transition ${getStatusColor(status)}`}>
+                      {status || "Applied"} <ChevronDown className="w-3 h-3"/>
+                    </button>
+                    <div className="absolute top-full left-0 mt-1 w-40 bg-white border border-slate-200 rounded-xl shadow-xl hidden group-hover:block z-10 p-1">
+                        {["Applied", "Reviewing", "Interview", "Offer", "Rejected"].map((s) => (
+                            <button key={s} onClick={() => handleStatusChange(s)} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg">{s}</button>
+                        ))}
+                    </div>
+                  </div>
+
+                  {!loading && (
+                      isViewed ? (
+                        <div className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold flex items-center gap-1 border border-green-200"><CheckCircle className="w-3 h-3"/> Viewed</div>
+                      ) : (
+                        <button onClick={handleMarkViewed} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-700 transition shadow-sm"><Eye className="w-3 h-3"/> Mark as Viewed</button>
+                      )
+                  )}
               </div>
             </div>
           </div>
-
-          <div className="flex gap-2">
-            {/* DOWNLOAD BUTTON - UPDATED WITH VALIDATION */}
-            {isValidUrl(data?.resume_url) && (
-                <a 
-                    href={data.resume_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="p-2 text-slate-400 hover:text-[#0F172A] hover:bg-white rounded-lg transition border border-transparent hover:border-slate-200 cursor-pointer" 
-                    title="Download Resume"
-                >
-                    <Download className="w-5 h-5"/>
-                </a>
-            )}
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"><X className="w-6 h-6" /></button>
         </div>
 
-        {loading && (
+        {loading ? (
             <div className="flex-1 flex items-center justify-center flex-col text-slate-400 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-[#0F172A]"/>
-                <p className="text-sm font-bold">Fetching Secure Data...</p>
+                <p className="text-sm font-bold">Analyzing Profile...</p>
             </div>
-        )}
-
-        {!loading && data && (
+        ) : (
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex border-b border-slate-200 px-6">
-                <button onClick={() => setActiveTab("insights")} className={`py-4 mr-6 text-sm font-bold flex items-center gap-2 border-b-2 transition ${activeTab === 'insights' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400'}`}>
-                    <BrainCircuit className="w-4 h-4"/> AI Insights
-                </button>
-                <button onClick={() => setActiveTab("resume")} className={`py-4 text-sm font-bold flex items-center gap-2 border-b-2 transition ${activeTab === 'resume' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400'}`}>
-                    <FileText className="w-4 h-4"/> Original Resume
-                </button>
+                <button onClick={() => setActiveTab("insights")} className={`py-4 mr-6 text-sm font-bold flex items-center gap-2 border-b-2 transition ${activeTab === 'insights' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400'}`}><BrainCircuit className="w-4 h-4"/> AI Insights</button>
+                <button onClick={() => setActiveTab("resume")} className={`py-4 text-sm font-bold flex items-center gap-2 border-b-2 transition ${activeTab === 'resume' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400'}`}><FileText className="w-4 h-4"/> Original Resume</button>
             </div>
 
             <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
                 {activeTab === "insights" && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="space-y-6">
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-bold text-slate-900">Match Score Analysis</h3>
-                                <span className={`text-2xl font-black ${data.ai_score >= 70 ? 'text-green-600' : 'text-yellow-600'}`}>{data.ai_score}%</span>
+                                <span className={`text-2xl font-black ${data?.match_score >= 70 ? 'text-green-600' : 'text-yellow-600'}`}>{data?.match_score || 0}%</span>
                             </div>
-                            <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
-                                <div className={`h-2 rounded-full transition-all duration-1000 ${data.ai_score >= 70 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{width: `${data.ai_score}%`}}></div>
+                            <div className="w-full bg-slate-100 rounded-full h-2.5 mb-6">
+                                <div className={`h-2.5 rounded-full transition-all duration-1000 ${data?.match_score >= 70 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{width: `${data?.match_score || 0}%`}}></div>
                             </div>
-                            <p className="text-slate-600 text-sm leading-relaxed">{data.ai_analysis?.summary || "AI is processing this candidate..."}</p>
+                            
+                            <p className="text-slate-600 text-sm leading-relaxed mb-8">{getSummaryText()}</p>
+
+                            {/* STRENGTHS */}
+                            {(data?.ai_analysis?.strengths?.length > 0 || data?.ai_analysis?.matched_skills?.length > 0) && (
+                                <div className="mb-6">
+                                    <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><CheckCircle className="w-3 h-3"/> Top Strengths</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(data.ai_analysis.strengths || data.ai_analysis.matched_skills).map((skill: string, i: number) => (
+                                            <span key={i} className="px-3 py-1 bg-green-50 text-green-700 rounded-lg text-xs font-bold border border-green-100">{skill}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* MISSING SKILLS */}
+                            {data?.ai_analysis?.missing_skills?.length > 0 && (
+                                <div className="pt-6 border-t border-slate-100">
+                                    <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3 flex items-center gap-1.5"><AlertCircle className="w-3 h-3"/> Missing Skills</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {data.ai_analysis.missing_skills.map((skill: string, i: number) => (
+                                            <span key={i} className="px-3 py-1 bg-red-50 text-red-700 rounded-lg text-xs font-bold border border-red-100">{skill}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
 
                 {activeTab === "resume" && (
-                    <div className="h-full bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
-                        {/* RESUME VIEWER - UPDATED WITH VALIDATION */}
-                        {isValidUrl(data.resume_url) ? (
+                    <div className="h-full bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col min-h-[500px]">
+                        {isValidUrl(data?.resume_url) ? (
                             <iframe src={data.resume_url} className="w-full h-full flex-1" title="Resume Viewer"></iframe>
                         ) : (
-                            <div className="flex-1 flex items-center justify-center text-slate-400 flex-col gap-2">
-                                <FileText className="w-10 h-10 opacity-20"/>
-                                <span>No resume file uploaded.</span>
-                            </div>
+                            <div className="flex-1 flex items-center justify-center text-slate-400 flex-col gap-2"><FileText className="w-10 h-10 opacity-20"/><span>No resume file available.</span></div>
                         )}
                     </div>
                 )}
