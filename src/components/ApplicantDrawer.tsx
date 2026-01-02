@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, Download, User, FileText, BrainCircuit, Loader2, ChevronDown, CheckCircle, Eye, AlertCircle } from "lucide-react";
+import { X, User, FileText, BrainCircuit, Loader2, ChevronDown, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
 
 export default function ApplicantDrawer({ isOpen, onClose, applicationId, token, onMarkAsViewed }: any) {
   const [data, setData] = useState<any>(null);
@@ -60,25 +60,25 @@ export default function ApplicantDrawer({ isOpen, onClose, applicationId, token,
 
   if (!isOpen) return null;
 
-  // Helper to find the summary text regardless of the key name
-  const getSummaryText = () => {
-      if (!data?.ai_analysis) return "No analysis available.";
-      return data.ai_analysis.summary || data.ai_analysis.reason || "Analysis complete.";
-  };
+  // --- KEY FIX: Map the specific AI reason and gaps from your updated backend ---
+  const aiReason = data?.ai_reason || "Analysis complete.";
+  const skillGaps = data?.skill_gaps || []; 
+  // --------------------------------------------------------------------------------
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={onClose} />
       <div className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
+        {/* HEADER */}
         <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
           <div className="flex gap-4">
             <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-2xl font-black text-slate-300 shadow-sm">
-              {data?.applicant_name?.charAt(0) || <User/>}
+              {data?.name?.charAt(0) || <User/>}
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900">{data?.applicant_name || "Loading..."}</h2>
-              <p className="text-slate-500 text-sm font-medium">{data?.applicant_email}</p>
+              <h2 className="text-xl font-black text-slate-900">{data?.name || "Loading..."}</h2>
+              <p className="text-slate-500 text-sm font-medium">{data?.applicant_email || "Applicant Info"}</p>
               
               <div className="mt-3 flex items-center gap-3">
                   <div className="relative inline-block group">
@@ -96,7 +96,7 @@ export default function ApplicantDrawer({ isOpen, onClose, applicationId, token,
                       isViewed ? (
                         <div className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold flex items-center gap-1 border border-green-200"><CheckCircle className="w-3 h-3"/> Viewed</div>
                       ) : (
-                        <button onClick={handleMarkViewed} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-700 transition shadow-sm"><Eye className="w-3 h-3"/> Mark as Viewed</button>
+                        <button onClick={handleMarkViewed} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-700 transition shadow-sm">Mark as Viewed</button>
                       )
                   )}
               </div>
@@ -112,7 +112,7 @@ export default function ApplicantDrawer({ isOpen, onClose, applicationId, token,
             </div>
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex border-b border-slate-200 px-6">
+            <div className="flex border-b border-slate-200 px-6 bg-white">
                 <button onClick={() => setActiveTab("insights")} className={`py-4 mr-6 text-sm font-bold flex items-center gap-2 border-b-2 transition ${activeTab === 'insights' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400'}`}><BrainCircuit className="w-4 h-4"/> AI Insights</button>
                 <button onClick={() => setActiveTab("resume")} className={`py-4 text-sm font-bold flex items-center gap-2 border-b-2 transition ${activeTab === 'resume' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400'}`}><FileText className="w-4 h-4"/> Original Resume</button>
             </div>
@@ -122,36 +122,41 @@ export default function ApplicantDrawer({ isOpen, onClose, applicationId, token,
                     <div className="space-y-6">
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-slate-900">Match Score Analysis</h3>
+                                <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-purple-500"/> AI Match Analysis
+                                </h3>
                                 <span className={`text-2xl font-black ${data?.match_score >= 70 ? 'text-green-600' : 'text-yellow-600'}`}>{data?.match_score || 0}%</span>
                             </div>
                             <div className="w-full bg-slate-100 rounded-full h-2.5 mb-6">
                                 <div className={`h-2.5 rounded-full transition-all duration-1000 ${data?.match_score >= 70 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{width: `${data?.match_score || 0}%`}}></div>
                             </div>
                             
-                            <p className="text-slate-600 text-sm leading-relaxed mb-8">{getSummaryText()}</p>
+                            {/* AI REASONING --- */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-8">
+                                <p className="text-slate-700 text-sm leading-relaxed italic">"{aiReason}"</p>
+                            </div>
 
-                            {/* STRENGTHS */}
-                            {(data?.ai_analysis?.strengths?.length > 0 || data?.ai_analysis?.matched_skills?.length > 0) && (
-                                <div className="mb-6">
-                                    <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><CheckCircle className="w-3 h-3"/> Top Strengths</p>
+                            {/* SKILL GAPS --- */}
+                            {skillGaps.length > 0 && (
+                                <div className="pt-6 border-t border-slate-100">
+                                    <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                        <AlertCircle className="w-3 h-3"/> Identified Skill Gaps
+                                    </p>
                                     <div className="flex flex-wrap gap-2">
-                                        {(data.ai_analysis.strengths || data.ai_analysis.matched_skills).map((skill: string, i: number) => (
-                                            <span key={i} className="px-3 py-1 bg-green-50 text-green-700 rounded-lg text-xs font-bold border border-green-100">{skill}</span>
+                                        {skillGaps.map((skill: string, i: number) => (
+                                            <span key={i} className="px-3 py-1 bg-red-50 text-red-700 rounded-lg text-xs font-bold border border-red-100">
+                                                {skill}
+                                            </span>
                                         ))}
                                     </div>
                                 </div>
                             )}
 
-                            {/* MISSING SKILLS */}
-                            {data?.ai_analysis?.missing_skills?.length > 0 && (
+                            {skillGaps.length === 0 && data?.match_score > 80 && (
                                 <div className="pt-6 border-t border-slate-100">
-                                    <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3 flex items-center gap-1.5"><AlertCircle className="w-3 h-3"/> Missing Skills</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {data.ai_analysis.missing_skills.map((skill: string, i: number) => (
-                                            <span key={i} className="px-3 py-1 bg-red-50 text-red-700 rounded-lg text-xs font-bold border border-red-100">{skill}</span>
-                                        ))}
-                                    </div>
+                                     <p className="text-xs font-bold text-green-600 flex items-center gap-2">
+                                        <CheckCircle className="w-4 h-4"/> Candidate meets primary requirements.
+                                     </p>
                                 </div>
                             )}
                         </div>
@@ -160,10 +165,13 @@ export default function ApplicantDrawer({ isOpen, onClose, applicationId, token,
 
                 {activeTab === "resume" && (
                     <div className="h-full bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col min-h-[500px]">
-                        {isValidUrl(data?.resume_url) ? (
-                            <iframe src={data.resume_url} className="w-full h-full flex-1" title="Resume Viewer"></iframe>
+                        {isValidUrl(data?.resume_snapshot_url || data?.resume_url) ? (
+                            <iframe src={data.resume_snapshot_url || data.resume_url} className="w-full h-full flex-1" title="Resume Viewer"></iframe>
                         ) : (
-                            <div className="flex-1 flex items-center justify-center text-slate-400 flex-col gap-2"><FileText className="w-10 h-10 opacity-20"/><span>No resume file available.</span></div>
+                            <div className="flex-1 flex items-center justify-center text-slate-400 flex-col gap-2">
+                                <FileText className="w-10 h-10 opacity-20"/>
+                                <span className="font-bold">No resume file available.</span>
+                            </div>
                         )}
                     </div>
                 )}
