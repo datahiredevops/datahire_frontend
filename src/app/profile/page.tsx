@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-// REMOVED: import Sidebar from "@/components/Sidebar"; <--- Layout handles this now!
 
 // Import Components
 import Step1_Basics from "@/components/profile/Step1_Basics";
@@ -24,6 +23,10 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   
   const [profileData, setProfileData] = useState({
+    // --- ADDED: Name fields to state ---
+    first_name: "", 
+    last_name: "",
+    // ----------------------------------
     headline: "", summary: "", city: "", state: "", phone: "", linkedin_url: "", portfolio_url: "",
     work_auth: "US Citizen", requires_sponsorship: false, target_job_titles: "", min_expected_salary: "", notice_period: "Immediate", willing_to_relocate: false, preferred_remote_style: "Hybrid",
     
@@ -42,10 +45,16 @@ export default function ProfilePage() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user.id}`)
         .then(res => res.json())
         .then(data => {
-          if (data.profile) {
-            setProfileData(prev => ({ ...prev, ...data.profile }));
+          if (data) {
+            // --- FIX: Merge User Name + Profile Data ---
+            setProfileData(prev => ({ 
+                ...prev, 
+                ...(data.profile || {}), // Merge profile fields safely
+                first_name: data.first_name || "", // Grab from root user object
+                last_name: data.last_name || ""    // Grab from root user object
+            }));
             
-            const p = data.profile;
+            const p = data.profile || {};
             const hasData = 
                 p.headline || 
                 p.summary || 
