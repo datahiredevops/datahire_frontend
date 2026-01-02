@@ -11,8 +11,16 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth(); 
 
-  // Hide sidebar on auth pages
-  if (["/login", "/signup", "/forgot-password"].includes(pathname)) {
+  // --- UPDATED: Hide sidebar on ALL auth and onboarding pages ---
+  const hideSidebarRoutes = [
+    "/login", 
+    "/signup", 
+    "/forgot-password", 
+    "/employer/login", 
+    "/employer/register"
+  ];
+  
+  if (hideSidebarRoutes.includes(pathname)) {
     return null;
   }
 
@@ -32,14 +40,11 @@ export default function Sidebar() {
     { name: "Company Profile", href: "/employer/company", icon: Building2 },
   ];
 
-  // Determine which menu to show
   const isEmployer = user?.role === "employer";
   const navItems = isEmployer ? employerItems : seekerItems;
 
   return (
     <aside className="w-64 h-full bg-white border-r border-slate-200 hidden lg:flex flex-col flex-none z-50">
-      
-      {/* LOGO AREA */}
       <div className="p-8">
         <Link href={isEmployer ? "/employer/dashboard" : "/jobs"} className="flex items-center gap-3 font-black text-xl text-slate-900 tracking-tight hover:opacity-80 transition">
           <div className="w-9 h-9 bg-[#0F172A] text-white rounded-xl flex items-center justify-center text-lg shadow-lg shadow-slate-900/20">D</div>
@@ -47,7 +52,6 @@ export default function Sidebar() {
         </Link>
       </div>
 
-      {/* NAVIGATION LINKS */}
       <nav className="flex-1 px-4 space-y-2 overflow-y-auto no-scrollbar">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
@@ -68,7 +72,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* USER FOOTER */}
       <div className="p-4 border-t border-slate-100 bg-slate-50/50">
         <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-200 cursor-default">
           <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-black text-sm border-2 border-white shadow-sm">

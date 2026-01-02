@@ -59,7 +59,6 @@ export default function MyJobsPage() {
     } catch (e) { alert("Duplicate failed"); }
   };
 
-  // --- CALCULATE COUNTS (NEW) ---
   const counts = {
       All: jobs.filter(j => j.status !== "Archived").length,
       Published: jobs.filter(j => j.status === "Published").length,
@@ -68,7 +67,6 @@ export default function MyJobsPage() {
       Deleted: jobs.filter(j => j.status === "Archived").length
   };
 
-  // --- TABS CONFIG ---
   const tabs = [
       { id: "All", label: "All Jobs", count: counts.All },
       { id: "Published", label: "Active", count: counts.Published },
@@ -79,25 +77,25 @@ export default function MyJobsPage() {
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(search.toLowerCase());
-    
     if (filter === "All") return job.status !== "Archived" && matchesSearch;
     if (filter === "Deleted") return job.status === "Archived" && matchesSearch;
     return job.status === filter && matchesSearch;
   });
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-8" onClick={() => setOpenMenuId(null)}>
-        <div className="max-w-6xl mx-auto">
+    /* FIX: Changed min-h-screen to h-full and added overflow-y-auto */
+    <div className="w-full h-full overflow-y-auto bg-[#F8FAFC] p-8" onClick={() => setOpenMenuId(null)}>
+        <div className="max-w-6xl mx-auto pb-20">
             
             {/* HEADER */}
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-900">My Jobs</h1>
-                    <p className="text-slate-500 mt-1">Manage your active listings.</p>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">My Jobs</h1>
+                    <p className="text-slate-500 font-medium mt-1">Manage your active listings.</p>
                 </div>
                 <button 
                     onClick={() => router.push("/employer/jobs/create")} 
-                    className="bg-[#0F172A] text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition flex items-center gap-2 shadow-lg shadow-slate-900/10"
+                    className="bg-[#0F172A] text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition flex items-center gap-2 shadow-lg shadow-slate-900/10 active:scale-95"
                 >
                     <Plus className="w-5 h-5"/> Post New Job
                 </button>
@@ -105,7 +103,7 @@ export default function MyJobsPage() {
 
             {/* TOOLBAR */}
             <div className="bg-white p-2 rounded-xl border border-slate-200 mb-6 flex flex-col md:flex-row justify-between items-center shadow-sm gap-4">
-                <div className="flex gap-1 overflow-x-auto w-full md:w-auto">
+                <div className="flex gap-1 overflow-x-auto w-full md:w-auto no-scrollbar">
                     {tabs.map((tab) => (
                         <button 
                             key={tab.id}
@@ -142,7 +140,7 @@ export default function MyJobsPage() {
                                     <span className="flex items-center gap-1"><MapPin className="w-4 h-4"/> {job.location}</span>
                                     <span className="flex items-center gap-1"><Calendar className="w-4 h-4"/> Posted {new Date(job.posted_at).toLocaleDateString()}</span>
                                     <button onClick={() => router.push(`/employer/jobs/${job.id}`)} className="flex items-center gap-1 text-slate-900 bg-slate-100 px-2 py-0.5 rounded ml-2 hover:bg-slate-200 transition">
-                                        {job.applicant_count} Candidates <ArrowRight className="w-3 h-3 ml-1"/>
+                                        {job.applicant_count || 0} Candidates <ArrowRight className="w-3 h-3 ml-1"/>
                                     </button>
                                 </div>
                             </div>
@@ -151,7 +149,7 @@ export default function MyJobsPage() {
                                 <button onClick={() => setPreviewJob(job)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-blue-600 transition" title="Preview"><Eye className="w-5 h-5"/></button>
 
                                 <div className="relative">
-                                    <button onClick={() => setOpenMenuId(openMenuId === job.id ? null : job.id)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition"><MoreVertical className="w-5 h-5"/></button>
+                                    <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === job.id ? null : job.id); }} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition"><MoreVertical className="w-5 h-5"/></button>
 
                                     {openMenuId === job.id && (
                                         <div className="absolute right-0 top-10 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-20 animate-in fade-in zoom-in duration-200">

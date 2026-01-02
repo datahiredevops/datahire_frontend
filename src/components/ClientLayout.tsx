@@ -1,5 +1,4 @@
 "use client";
-
 import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 
@@ -10,8 +9,8 @@ export default function ClientLayout({
 }) {
   const pathname = usePathname();
 
-  // Auth pages (job seeker + employer)
-  const authRoutes = [
+  // --- UPDATED: Define strict auth/onboarding routes that need NO sidebar ---
+  const cleanAuthRoutes = [
     "/login",
     "/signup",
     "/forgot-password",
@@ -19,21 +18,17 @@ export default function ClientLayout({
     "/employer/register",
   ];
 
-  // Also protect future employer auth routes
-  const isAuthPage =
-    authRoutes.includes(pathname) ||
-    pathname.startsWith("/employer/");
+  const isCleanPage = cleanAuthRoutes.includes(pathname);
 
-  // Auth pages → no sidebar, no flex shell
-  if (isAuthPage) {
+  // If it's a login/register page, just show the content (no sidebar)
+  if (isCleanPage) {
     return <>{children}</>;
   }
 
-  // App pages → sidebar layout
+  // For all other pages (Employer Dashboard, Seeker Jobs, etc.), show the Sidebar shell
   return (
     <div className="flex h-screen w-full bg-[#F8FAFC] overflow-hidden font-sans">
       <Sidebar />
-
       <main className="flex-1 flex flex-col h-full relative overflow-hidden">
         {children}
       </main>
