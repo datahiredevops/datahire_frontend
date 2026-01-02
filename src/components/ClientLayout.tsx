@@ -1,27 +1,42 @@
 "use client";
+
 import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 
-export default function ClientLayout({ children }: { children: React.ReactNode }) {
+export default function ClientLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
-  const authPages = ["/login", "/signup", "/forgot-password"];
-  const isAuthPage = authPages.includes(pathname);
 
+  // Auth pages (job seeker + employer)
+  const authRoutes = [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/employer/login",
+    "/employer/register",
+  ];
+
+  // Also protect future employer auth routes
+  const isAuthPage =
+    authRoutes.includes(pathname) ||
+    pathname.startsWith("/employer/");
+
+  // Auth pages → no sidebar, no flex shell
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
+
+  // App pages → sidebar layout
   return (
-    // 1. FLEX CONTAINER: Forces items to sit side-by-side
     <div className="flex h-screen w-full bg-[#F8FAFC] overflow-hidden font-sans">
-      
-      {/* 2. SIDEBAR: Sits on the left naturally */}
-      {!isAuthPage && <Sidebar />}
+      <Sidebar />
 
-      {/* 3. MAIN CONTENT: Fills the rest of the screen
-          flex-1: Grow to fill width
-          overflow-hidden: Prevents double scrollbars
-      */}
       <main className="flex-1 flex flex-col h-full relative overflow-hidden">
         {children}
       </main>
-      
     </div>
   );
 }

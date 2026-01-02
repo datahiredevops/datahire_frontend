@@ -49,6 +49,7 @@ export default function EmployerDashboard() {
             if (!app.is_viewed) unreadCount++;
         });
 
+        // Sort by newest application first
         const sortedActivity = appsData.sort((a: any, b: any) => 
             new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime()
         ).slice(0, 5);
@@ -77,27 +78,28 @@ export default function EmployerDashboard() {
       router.push(`/employer/applicants?status=${status}`);
   };
 
+  // FIX: Main container is now fully responsive and fills the space next to the sidebar
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-8 font-sans">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="w-full h-full overflow-y-auto bg-[#F8FAFC] p-8 font-sans">
+      <div className="max-w-6xl mx-auto space-y-8 pb-20">
         
         {/* HEADER */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <h1 className="text-3xl font-black text-slate-900 tracking-tight">
                     {getGreeting()}, {user?.first_name || "Partner"} 👋
                 </h1>
-                <p className="text-slate-500 font-medium mt-1">Here is what's happening with your hiring pipeline.</p>
+                <p className="text-slate-500 font-medium mt-1">Here is what is happening with your hiring pipeline.</p>
             </div>
             <button 
                 onClick={() => router.push('/employer/jobs/create')}
-                className="bg-[#0F172A] text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition flex items-center gap-2 shadow-lg shadow-slate-900/10"
+                className="bg-[#0F172A] text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition flex items-center gap-2 shadow-lg shadow-slate-900/10 active:scale-95"
             >
                 <Plus className="w-5 h-5"/> Post New Job
             </button>
         </div>
 
-        {/* METRICS - UPDATED: Removed Unread Card & Changed Grid to 2 Columns */}
+        {/* METRICS GRID (2 Columns) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <StatsCard icon={<Briefcase className="w-6 h-6 text-blue-600"/>} label="Active Jobs" value={stats.activeJobs} color="bg-blue-50"/>
             <StatsCard icon={<Users className="w-6 h-6 text-purple-600"/>} label="Total Candidates" value={stats.totalApplicants} color="bg-purple-50"/>
@@ -112,7 +114,7 @@ export default function EmployerDashboard() {
                         <TrendingUp className="w-5 h-5 text-slate-400"/> Pipeline Health
                     </h3>
                 </div>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <PipelineStage 
                         label="Applied" 
                         count={stats.pipeline.applied} 
@@ -141,10 +143,11 @@ export default function EmployerDashboard() {
                 
                 {/* Visual Bar */}
                 <div className="mt-8 h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                    <div style={{ flex: stats.pipeline.applied || 0.1 }} className="bg-slate-400 h-full"></div>
-                    <div style={{ flex: stats.pipeline.reviewing }} className="bg-blue-500 h-full"></div>
-                    <div style={{ flex: stats.pipeline.interview }} className="bg-purple-500 h-full"></div>
-                    <div style={{ flex: stats.pipeline.offer }} className="bg-green-500 h-full"></div>
+                    {/* Add min-width to ensure visibility even if count is 0 */}
+                    <div style={{ flex: Math.max(stats.pipeline.applied, 0.5) }} className="bg-slate-400 h-full"></div>
+                    <div style={{ flex: Math.max(stats.pipeline.reviewing, 0.5) }} className="bg-blue-500 h-full"></div>
+                    <div style={{ flex: Math.max(stats.pipeline.interview, 0.5) }} className="bg-purple-500 h-full"></div>
+                    <div style={{ flex: Math.max(stats.pipeline.offer, 0.5) }} className="bg-green-500 h-full"></div>
                 </div>
                 <div className="flex justify-between text-xs font-bold text-slate-400 mt-2">
                     <span>Inbound</span>
@@ -153,12 +156,12 @@ export default function EmployerDashboard() {
             </div>
 
             {/* RECENT ACTIVITY */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2 mb-6">
                     <Clock className="w-5 h-5 text-slate-400"/> Recent Activity
                 </h3>
                 
-                <div className="space-y-6">
+                <div className="space-y-6 flex-1 overflow-y-auto max-h-[300px] pr-2">
                     {recentActivity.length === 0 ? (
                         <p className="text-sm text-slate-400 text-center py-8">No recent activity.</p>
                     ) : (
@@ -167,10 +170,10 @@ export default function EmployerDashboard() {
                                 <div className="absolute -left-[21px] top-0 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-white"></div>
                                 <div>
                                     <p className="text-sm text-slate-900">
-                                        <span className="font-bold">{act.name}</span> applied for <span className="font-bold text-blue-600">{act.job_title}</span>
+                                        <span className="font-bold">{act.name}</span> applied for <span className="font-bold text-blue-600">{act.job_title || "a job"}</span>
                                     </p>
                                     <p className="text-xs text-slate-400 font-bold mt-1">
-                                        {new Date(act.applied_at).toLocaleDateString()}
+                                        {act.applied_at ? new Date(act.applied_at).toLocaleDateString() : "Just now"}
                                     </p>
                                 </div>
                             </div>
@@ -180,7 +183,7 @@ export default function EmployerDashboard() {
                 
                 <button 
                     onClick={() => router.push('/employer/applicants')}
-                    className="w-full mt-6 py-3 text-sm font-bold text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition"
+                    className="w-full mt-auto py-3 text-sm font-bold text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition"
                 >
                     View All Activity
                 </button>
