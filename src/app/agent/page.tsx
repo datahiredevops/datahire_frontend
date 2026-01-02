@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import Sidebar from "@/components/Sidebar";
-import PricingModal from "@/components/PricingModal"; // <--- Import the new Modal
+// REMOVED: import Sidebar from "@/components/Sidebar"; <--- Layout handles this now
+import PricingModal from "@/components/PricingModal"; 
 import { 
   Bot, FileText, Mic, Briefcase, Sparkles, CheckCircle, Copy, User, ArrowRight, UserCircle2, Code2, LineChart, Crown, AlertTriangle
 } from "lucide-react";
@@ -22,12 +22,11 @@ export default function AgentPage() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs`).then(r=>r.json()).then(setJobs).catch(console.error);
   }, []);
 
-  if (!user) return <div className="flex h-screen items-center justify-center bg-slate-50">Loading Agent...</div>;
+  if (!user) return <div className="flex h-full items-center justify-center bg-slate-50 text-slate-400 font-bold">Loading Agent...</div>;
 
+  // FIX: Main Container uses w-full h-full overflow-y-auto to respect the Layout
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans">
-      <Sidebar />
-      <main className="ml-20 lg:ml-64 flex-1 p-8 relative">
+    <div className="w-full h-full overflow-y-auto bg-slate-50 font-sans p-8 relative">
         
         {/* HEADER */}
         <div className="mb-8 flex justify-between items-end">
@@ -55,7 +54,7 @@ export default function AgentPage() {
         </div>
 
         {/* MAIN WORKSPACE */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm min-h-[600px] p-8 relative overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm min-h-[600px] p-8 relative overflow-hidden mb-20">
             {activeTool === "cover-letter" && <CoverLetterTool user={user} jobs={jobs} triggerUpgrade={() => setShowPricing(true)} />}
             {activeTool === "interview" && <MockInterviewTool user={user} jobs={jobs} triggerUpgrade={() => setShowPricing(true)} />}
             {activeTool === "auto-apply" && <AutoApplyTool user={user} triggerUpgrade={() => setShowPricing(true)} />}
@@ -64,7 +63,6 @@ export default function AgentPage() {
         {/* --- PRICING MODAL --- */}
         <PricingModal isOpen={showPricing} onClose={() => setShowPricing(false)} />
 
-      </main>
     </div>
   );
 }
@@ -122,7 +120,7 @@ function CoverLetterTool({ user, jobs, triggerUpgrade }: any) {
     };
 
     return (
-        <div className="max-w-6xl mx-auto h-full flex gap-8">
+        <div className="max-w-6xl mx-auto h-full flex flex-col md:flex-row gap-8">
             <div className="flex-1 flex flex-col">
                 <h2 className="text-xl font-bold text-slate-900 mb-6">Cover Letter Architect</h2>
                 <div className="flex gap-4 mb-6">
@@ -133,13 +131,13 @@ function CoverLetterTool({ user, jobs, triggerUpgrade }: any) {
                     <button onClick={generate} disabled={loading} className="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:bg-purple-700 transition">{loading ? "Writing..." : "Generate"}</button>
                 </div>
                 {letter ? (
-                    <div className="flex-1 bg-slate-50 p-8 rounded-xl border border-slate-200 font-serif text-sm leading-7 text-slate-800 whitespace-pre-wrap overflow-y-auto relative group">
+                    <div className="flex-1 bg-slate-50 p-8 rounded-xl border border-slate-200 font-serif text-sm leading-7 text-slate-800 whitespace-pre-wrap overflow-y-auto relative group max-h-[500px]">
                         <button onClick={() => navigator.clipboard.writeText(letter)} className="absolute top-4 right-4 p-2 bg-white border rounded-lg opacity-0 group-hover:opacity-100 transition"><Copy className="w-4 h-4"/></button>
                         {letter}
                     </div>
-                ) : <div className="flex-1 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-400">Select a job to generate.</div>}
+                ) : <div className="flex-1 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-400 min-h-[300px]">Select a job to generate.</div>}
             </div>
-            <div className="w-80 border-l pl-8 flex flex-col">
+            <div className="w-full md:w-80 border-l pl-0 md:pl-8 flex flex-col pt-8 md:pt-0 border-t md:border-t-0">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="font-bold text-slate-900">Saved Letters</h3>
                     <span className={`text-xs font-bold px-2 py-1 rounded ${savedLetters.length >= 5 ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'}`}>{savedLetters.length}/5</span>
@@ -149,7 +147,7 @@ function CoverLetterTool({ user, jobs, triggerUpgrade }: any) {
                         Unlock Unlimited
                     </button>
                 )}
-                <div className="flex-1 overflow-y-auto space-y-3">
+                <div className="flex-1 overflow-y-auto space-y-3 max-h-[500px]">
                     {savedLetters.map((l: any) => (
                         <div key={l.id} className="p-4 bg-white border rounded-xl hover:border-purple-200 transition">
                             <p className="text-xs font-bold text-slate-900 line-clamp-2 mb-2">{l.title}</p>

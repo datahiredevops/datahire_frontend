@@ -2,6 +2,13 @@
 import { MapPin, Link as LinkIcon, Mail, Phone, Calendar, Building2, GraduationCap, Code, Award, Edit3, FileText, Download } from "lucide-react";
 
 export default function ProfileView({ data, user, onEdit }: any) {
+  
+  // --- FIX: Logic to prioritize fresh data from API over auth context ---
+  const firstName = data.first_name || user?.first_name || "User";
+  const lastName = data.last_name || user?.last_name || "";
+  const fullName = `${firstName} ${lastName}`.trim();
+  // ---------------------------------------------------------------------
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
       
@@ -22,13 +29,14 @@ export default function ProfileView({ data, user, onEdit }: any) {
             {/* Avatar */}
             <div className="w-28 h-28 bg-white rounded-full p-1.5 shadow-md">
                 <div className="w-full h-full bg-slate-100 rounded-full flex items-center justify-center text-3xl font-bold text-slate-400 border border-slate-200">
-                    {user?.first_name?.[0]}{user?.last_name?.[0]}
+                    {firstName[0]?.toUpperCase()}{lastName[0]?.toUpperCase()}
                 </div>
             </div>
 
             {/* Basic Info */}
             <div className="mt-4">
-                <h1 className="text-3xl font-bold text-slate-900">{user?.first_name} {user?.last_name}</h1>
+                {/* FIX: Use the calculated fullName here */}
+                <h1 className="text-3xl font-bold text-slate-900">{fullName}</h1>
                 <p className="text-lg text-slate-700 font-medium mt-1">{data.headline}</p>
                 
                 <div className="flex flex-wrap gap-4 mt-3 text-sm text-slate-500">
@@ -66,7 +74,7 @@ export default function ProfileView({ data, user, onEdit }: any) {
             <div>
                 <h3 className="text-sm font-bold text-slate-500 uppercase mb-2">Primary Skills</h3>
                 <div className="flex flex-wrap gap-2">
-                    {data.skills.filter((s: any) => s.skill_type === "Primary").map((s: any, i: number) => (
+                    {data.skills?.filter((s: any) => s.skill_type === "Primary").map((s: any, i: number) => (
                         <span key={i} className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-semibold border border-green-100">
                             {s.name}
                         </span>
@@ -76,7 +84,7 @@ export default function ProfileView({ data, user, onEdit }: any) {
             <div>
                 <h3 className="text-sm font-bold text-slate-500 uppercase mb-2">Secondary Skills</h3>
                 <div className="flex flex-wrap gap-2">
-                    {data.skills.filter((s: any) => s.skill_type === "Secondary").map((s: any, i: number) => (
+                    {data.skills?.filter((s: any) => s.skill_type === "Secondary").map((s: any, i: number) => (
                         <span key={i} className="bg-slate-50 text-slate-600 px-3 py-1 rounded-full text-sm border border-slate-100">
                             {s.name}
                         </span>
@@ -90,7 +98,7 @@ export default function ProfileView({ data, user, onEdit }: any) {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <h2 className="text-xl font-bold text-slate-900 mb-6">Experience</h2>
         <div className="space-y-8 relative before:absolute before:left-[21px] before:top-10 before:bottom-0 before:w-[2px] before:bg-slate-100">
-            {data.experience.map((exp: any, i: number) => (
+            {data.experience?.map((exp: any, i: number) => (
                 <div key={i} className="flex gap-4 relative">
                     <div className="w-11 h-11 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 z-10">
                         <Building2 className="w-5 h-5 text-slate-400" />
@@ -103,7 +111,7 @@ export default function ProfileView({ data, user, onEdit }: any) {
                     </div>
                 </div>
             ))}
-             {data.experience.length === 0 && <p className="text-slate-400 italic">No experience added.</p>}
+             {(!data.experience || data.experience.length === 0) && <p className="text-slate-400 italic">No experience added.</p>}
         </div>
       </div>
 
@@ -111,7 +119,7 @@ export default function ProfileView({ data, user, onEdit }: any) {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <h2 className="text-xl font-bold text-slate-900 mb-6">Education</h2>
         <div className="space-y-6">
-            {data.education.map((edu: any, i: number) => (
+            {data.education?.map((edu: any, i: number) => (
                 <div key={i} className="flex gap-4">
                     <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center shrink-0">
                         <GraduationCap className="w-6 h-6 text-slate-400" />
@@ -132,7 +140,7 @@ export default function ProfileView({ data, user, onEdit }: any) {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><Code className="w-5 h-5"/> Projects</h2>
               <div className="space-y-4">
-                {data.projects.map((proj: any, i: number) => (
+                {data.projects?.map((proj: any, i: number) => (
                     <div key={i} className="border-l-2 border-slate-200 pl-4">
                         <h3 className="font-bold text-slate-900">{proj.name}</h3>
                         <p className="text-xs font-mono text-blue-600 mb-1">{proj.technologies}</p>
@@ -146,7 +154,7 @@ export default function ProfileView({ data, user, onEdit }: any) {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><Award className="w-5 h-5"/> Certifications</h2>
               <div className="space-y-4">
-                {data.certifications.map((cert: any, i: number) => (
+                {data.certifications?.map((cert: any, i: number) => (
                     <div key={i} className="flex items-start gap-3">
                         <div className="mt-1 w-2 h-2 bg-yellow-400 rounded-full shrink-0"></div>
                         <div>
