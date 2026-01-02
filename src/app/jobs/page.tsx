@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
-import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { 
   MapPin, Clock, Briefcase, Ban, Heart, Building2, ChevronRight, Search, Sparkles, X, MessageCircle, Send, FileText, CheckCircle2, Eye 
@@ -125,8 +124,11 @@ export default function JobBoard() {
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
-      <Sidebar />
-      <div className="flex-1 flex flex-col h-full ml-0 lg:ml-64 transition-all duration-300">
+      {/* IMPORTANT: The Sidebar is ALREADY rendered by your layout.tsx / ClientLayout.tsx.
+          Adding <Sidebar /> here would cause duplication.
+          We just render the main content area which fills the remaining space.
+      */}
+      <div className="flex-1 flex flex-col h-full w-full transition-all duration-300">
         
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0 h-16">
             <div className="flex items-center gap-4">
@@ -150,6 +152,7 @@ export default function JobBoard() {
 
         <div className="flex flex-1 overflow-hidden relative">
             
+            {/* Job List Column */}
             <div className={`w-full md:w-[300px] lg:w-[340px] border-r border-slate-200 bg-white flex flex-col ${isMobileDetailOpen ? 'hidden md:flex' : 'flex'}`}>
                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
                     {loading && <p className="text-center text-slate-400 mt-10">Loading jobs...</p>}
@@ -171,6 +174,7 @@ export default function JobBoard() {
                 </div>
             </div>
 
+            {/* Job Detail View Column */}
             <div className={`flex-1 bg-slate-50 flex flex-col overflow-hidden ${!isMobileDetailOpen ? 'hidden md:flex' : 'flex'}`}>
                 {selectedJob ? (
                      <JobDetailView 
@@ -186,7 +190,7 @@ export default function JobBoard() {
                 )}
             </div>
 
-            {/* This is the ONLY place FloatingMathi should exist */}
+            {/* Mathi Chat Bot */}
             <FloatingMathi userId={user?.id} isOpen={isChatOpen} setIsOpen={setIsChatOpen} />
 
         </div>

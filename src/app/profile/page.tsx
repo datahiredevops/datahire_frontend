@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/Sidebar";
+// REMOVED: import Sidebar from "@/components/Sidebar"; <--- Layout handles this now!
 
 // Import Components
 import Step1_Basics from "@/components/profile/Step1_Basics";
@@ -15,7 +15,6 @@ import WizardNavigation from "@/components/profile/WizardNavigation";
 import ProfileView from "@/components/profile/ProfileView";
 
 export default function ProfilePage() {
-  // FIX: Use 'loading', NOT 'isLoading'
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   
@@ -115,7 +114,7 @@ export default function ProfilePage() {
 
   if (authLoading || checkingProfile || !user) {
       return (
-        <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="flex h-full w-full items-center justify-center bg-slate-50">
             <div className="flex flex-col items-center gap-4">
                 <div className="w-12 h-12 border-4 border-[#0F172A] border-t-transparent rounded-full animate-spin"></div>
                 <p className="text-slate-500 font-medium">Loading Profile...</p>
@@ -124,45 +123,37 @@ export default function ProfilePage() {
       );
   }
 
-  // VIEW MODE
-  if (!isEditing) {
-    return (
-      <div className="flex min-h-screen bg-slate-50 font-sans">
-        <Sidebar />
-        <main className="ml-20 lg:ml-64 flex-1 p-8">
-           <ProfileView data={profileData} user={user} onEdit={() => setIsEditing(true)} />
-        </main>
-      </div>
-    );
-  }
-
-  // WIZARD MODE
+  // FIX: Main Container uses w-full h-full overflow-y-auto to respect the Layout
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans">
-      <Sidebar />
-      <main className="ml-20 lg:ml-64 flex-1 p-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900">Complete Your Profile</h1>
-            <p className="text-slate-500">Step {currentStep} of 6</p>
-          </div>
+    <div className="w-full h-full overflow-y-auto bg-slate-50 font-sans p-8">
+        
+        {/* VIEW MODE */}
+        {!isEditing ? (
+            <ProfileView data={profileData} user={user} onEdit={() => setIsEditing(true)} />
+        ) : (
+            /* WIZARD MODE */
+            <div className="max-w-3xl mx-auto pb-20">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-slate-900">Complete Your Profile</h1>
+                    <p className="text-slate-500">Step {currentStep} of 6</p>
+                </div>
 
-          <div className="mb-8 flex gap-2">
-            {[1, 2, 3, 4, 5, 6].map((step) => (
-              <div key={step} className={`h-2 flex-1 rounded-full transition-all ${step <= currentStep ? 'bg-[#0F172A]' : 'bg-slate-200'}`} />
-            ))}
-          </div>
+                <div className="mb-8 flex gap-2">
+                    {[1, 2, 3, 4, 5, 6].map((step) => (
+                    <div key={step} className={`h-2 flex-1 rounded-full transition-all ${step <= currentStep ? 'bg-[#0F172A]' : 'bg-slate-200'}`} />
+                    ))}
+                </div>
 
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 min-h-[400px]">
-            {currentStep === 1 && <Step1_Basics data={profileData} update={setProfileData} onNext={() => setCurrentStep(2)} />}
-            {currentStep === 2 && <><Step2_Legal data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(1)} onNext={() => saveAndNext()} loading={loading}/></>}
-            {currentStep === 3 && <><Step3_Skills data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(2)} onNext={() => saveAndNext()} loading={loading}/></>}
-            {currentStep === 4 && <><Step4_History data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(3)} onNext={() => saveAndNext()} loading={loading}/></>}
-            {currentStep === 5 && <><Step5_Portfolio data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(4)} onNext={() => saveAndNext()} loading={loading}/></>}
-            {currentStep === 6 && <><Step6_Resume data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(5)} onNext={() => saveAndNext(true)} isLastStep loading={loading}/></>}
-          </div>
-        </div>
-      </main>
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 min-h-[400px]">
+                    {currentStep === 1 && <Step1_Basics data={profileData} update={setProfileData} onNext={() => setCurrentStep(2)} />}
+                    {currentStep === 2 && <><Step2_Legal data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(1)} onNext={() => saveAndNext()} loading={loading}/></>}
+                    {currentStep === 3 && <><Step3_Skills data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(2)} onNext={() => saveAndNext()} loading={loading}/></>}
+                    {currentStep === 4 && <><Step4_History data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(3)} onNext={() => saveAndNext()} loading={loading}/></>}
+                    {currentStep === 5 && <><Step5_Portfolio data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(4)} onNext={() => saveAndNext()} loading={loading}/></>}
+                    {currentStep === 6 && <><Step6_Resume data={profileData} update={setProfileData} /><WizardNavigation onBack={() => setCurrentStep(5)} onNext={() => saveAndNext(true)} isLastStep loading={loading}/></>}
+                </div>
+            </div>
+        )}
     </div>
   );
 }

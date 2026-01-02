@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import Sidebar from "@/components/Sidebar";
+// REMOVED: import Sidebar from "@/components/Sidebar"; <--- Layout handles this now
 import { useAuth } from "@/context/AuthContext";
 import PricingModal from "@/components/PricingModal"; 
 import { 
@@ -17,7 +17,6 @@ export default function ResumePage() {
   const [viewContent, setViewContent] = useState<string | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
-  // --- NEW STATE FOR POPUP ---
   const [newlyUploadedId, setNewlyUploadedId] = useState<number | null>(null);
   const [showPrimaryPrompt, setShowPrimaryPrompt] = useState(false);
 
@@ -57,7 +56,6 @@ export default function ResumePage() {
       
       await fetchResumes();
 
-      // --- LOGIC: If we already had resumes, ask if this should be primary ---
       if (resumes.length > 0) {
         setNewlyUploadedId(data.resume.id);
         setShowPrimaryPrompt(true);
@@ -67,7 +65,6 @@ export default function ResumePage() {
       alert("Failed to upload resume.");
     } finally {
       setUploading(false);
-      // Reset input value so same file can be selected again if needed
       e.target.value = ""; 
     }
   };
@@ -79,7 +76,7 @@ export default function ResumePage() {
         });
         if (res.ok) {
             fetchResumes();
-            setShowPrimaryPrompt(false); // Close modal if open
+            setShowPrimaryPrompt(false); 
         }
     } catch { alert("Failed to set primary."); }
   };
@@ -104,10 +101,9 @@ export default function ResumePage() {
     } catch { alert("Error loading content"); }
   };
 
+  // FIX: Main Container uses w-full h-full overflow-y-auto to respect the Layout
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans">
-      <Sidebar />
-      <main className="ml-20 lg:ml-64 flex-1 p-8">
+    <div className="w-full h-full overflow-y-auto bg-slate-50 font-sans p-8">
         
         {/* HEADER */}
         <div className="flex justify-between items-end mb-8">
@@ -136,7 +132,7 @@ export default function ResumePage() {
         </div>
 
         {/* RESUME GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
             
             {/* UPLOAD CARD */}
             <label className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 cursor-pointer transition-all group min-h-[220px] ${resumes.length >= 5 && !user?.is_premium ? 'border-red-200 bg-red-50/50' : 'border-slate-300 hover:border-blue-500 hover:bg-blue-50'}`}>
@@ -264,7 +260,6 @@ export default function ResumePage() {
 
         <PricingModal isOpen={showPricing} onClose={() => setShowPricing(false)} />
 
-      </main>
     </div>
   );
 }
