@@ -2,7 +2,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-// Define the shape of the User object
 interface User {
   id: number;
   email: string;
@@ -12,11 +11,11 @@ interface User {
   is_premium: boolean;
 }
 
-// Define the shape of the Context
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  // UPDATE: login now accepts either (email, password) OR (token, user, path)
+  login: (arg1: string, arg2: string | User, redirectPath?: string) => Promise<void>;
   googleLogin: (token: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
@@ -30,7 +29,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Load from localStorage on mount
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
@@ -41,13 +39,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, []);
 
-  // --- LOGIN FUNCTION ---
-  const login = async (email: string, password: string) => {
+  // --- HELPER: SAVE & REDIRECT ---
+  const handleAuthSuccess = (newToken: string, newUser: User, redirectPath?: string) => {
+    setToken(newToken);
+    setUser(newUser);
+    localStorage.setItem("token", newToken);
+    localStorage.setItem("user", JSON.stringify(newUser));
+
+    if (redirectPath) {
+      router.push(redirectPath);
+    } else if (newUser.role === "employer") {
+      router.push("/employer/dashboard");
+    } else {
+      router.push("/jobs");
+    }
+  };
+
+  // --- LOGIN FUNCTION FIXED ---
+  const login = async (arg1: string, arg2: string | User, redirectPath?: string) => {
     try {
+      // Scenario A: Manual/Signup call -> login("token", userData, "/path")
+      if (typeof arg2 !== "string") {
+        handleAuthSuccess(arg1, arg2, redirectPath);
+        return;
+      }
+
+      // Scenario B: Traditional call -> login("email", "password")
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: arg1, password: arg2 }),
       });
 
       if (!res.ok) throw new Error("Login failed");
@@ -60,7 +81,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // --- GOOGLE LOGIN FUNCTION ---
   const googleLogin = async (token: string) => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/google-login`, {
@@ -68,30 +88,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-
       if (!res.ok) throw new Error("Google login failed");
-
       const data = await res.json();
       handleAuthSuccess(data.access_token, data.user);
     } catch (err) {
       console.error(err);
       throw err;
-    }
-  };
-
-  // --- HELPER: SAVE & REDIRECT (THE FIX IS HERE) ---
-  const handleAuthSuccess = (newToken: string, newUser: User) => {
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem("token", newToken);
-    localStorage.setItem("user", JSON.stringify(newUser));
-
-    // Redirect based on role
-    if (newUser.role === "employer") {
-      router.push("/employer/dashboard");
-    } else {
-      // FIXED: Redirect Job Seekers to /jobs instead of /dashboard
-      router.push("/jobs");
     }
   };
 
